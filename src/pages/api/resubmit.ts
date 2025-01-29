@@ -17,11 +17,25 @@ const sanitizeJSON = (rawOutput: string) => {
   // Remove backticks and the word "json"
   sanitized = sanitized.replace(/```json|```/g, "");
 
+  // Remove all occurrences of "**"
+  sanitized = sanitized.replace(/\*\*/g, "");
+
+  // Replace bullet points with proper format
+  sanitized = sanitized.replace(/\n\s*-\s*/g, "\n");
+
+  // Fix missing SOLUTION_X_DESCRIPTION headers
+  sanitized = sanitized.replace(/SOLUTION_(\d)_TITLE:([^\n]*)\n(?!SOLUTION_\1_DESCRIPTION:)(What It Is:)/g, 
+    "SOLUTION_$1_TITLE:$2\nSOLUTION_$1_DESCRIPTION: $3");
+
+  // Remove extra newlines before and after section headers
+  sanitized = sanitized.replace(/\n\s*\n(TITLE|INSIGHT|SOLUTION_\d_TITLE|SOLUTION_\d_DESCRIPTION|CHALLENGE):/g, "\n$1:");
+  sanitized = sanitized.replace(/(TITLE|INSIGHT|SOLUTION_\d_TITLE|SOLUTION_\d_DESCRIPTION|CHALLENGE):\s*\n\s*\n/g, "$1: ");
+
+  // Ensure CHALLENGE is on the same line as its text
+  sanitized = sanitized.replace(/CHALLENGE:\s*\n+/g, "CHALLENGE: ");
+
   // Escape double quotes inside strings
   sanitized = sanitized.replace(/(?<!\\)"/g, '\\"').replace(/\\"/g, '"');
-
-  // Remove non-standard quotation marks
-  // sanitized = sanitized.replace(/[‘’“”]/g, '"');
 
   // Ensure brackets are balanced
   const openBrackets = (sanitized.match(/\[/g) || []).length;
@@ -52,7 +66,7 @@ export default async function handler(
   }
 
   try {
-    const { id } = req.body;
+    const { id, adjustments } = req.body;
 
     // Fetch the entry from Supabase
     const supabaseUrl = process.env.SUPABASE_URL as string;
@@ -80,6 +94,17 @@ Fears: ${entry.fear}
 Future Vision: ${entry.future}
 Friend's Perspective: ${entry.friend}
 Assumptions: ${entry.assumption}
+
+The existing solutions were: 
+${entry.title}
+Pscyhological Analysis: ${entry.insight}
+Solution 1: ${entry.conetitle} ${entry.conedescription}
+Solution 2: ${entry.ctwotitle} ${entry.ctwodescription}
+Solution 3: ${entry.cthreetitle} ${entry.cthreedescription}
+Challenge: ${entry.challenge}
+
+The requested adjustments to these existing solutions are: 
+${adjustments}
 
 Based on these responses, create a structured analysis following this exact format:
 

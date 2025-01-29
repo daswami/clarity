@@ -200,7 +200,7 @@ export default function History() {
               <EssayAngles
                 angles={angles}
                 isLoading={false}
-                isMainPage={true}
+                isMainPage={false}
                 entryId={selectedEntry.id}
               />
             </div>

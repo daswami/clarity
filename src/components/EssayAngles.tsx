@@ -136,36 +136,65 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
       setAdjustmentError('Please fill in the adjustments');
       return;
     }
-    
-    if (!entryId) {
-      console.error('No entry ID provided');
-      return;
-    }
+
+    console.log('Starting adjustment...');
+    console.log('isMainPage:', isMainPage);
+    console.log('formData:', formData);
 
     setAdjustmentError(null);
     setIsResubmitting(true);
     try {
-      const response = await fetch('/api/resubmit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          id: entryId,
-          adjustments: adjustmentText 
-        }),
-      });
+      // If we're in the main page view, make a direct call to gemini API
+      if (isMainPage && formData) {
+        console.log('Making gemini API call...');
+        const response = await fetch('/api/gemini', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...formData,
+            adjustments: adjustmentText
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
-      }
+        if (!response.ok) {
+          throw new Error('Failed to get response');
+        }
 
-      const result = await response.json();
-      if (onResubmit) {
-        // First reset the saved state for all angles
-        setSavedCards([]);
-        // Then update with new angles
-        onResubmit(result.result);
+        const result = await response.json();
+        console.log('Gemini API response:', result);
+        if (onResubmit) {
+          setSavedCards([]);
+          onResubmit(result.result);
+        }
+      } 
+      // If we're in history view, use the resubmit API
+      else if (entryId) {
+        console.log('Making resubmit API call...');
+        const response = await fetch('/api/resubmit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            id: entryId,
+            adjustments: adjustmentText 
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to get response');
+        }
+
+        const result = await response.json();
+        console.log('Resubmit API response:', result);
+        if (onResubmit) {
+          setSavedCards([]);
+          onResubmit(result.result);
+        }
+      } else {
+        console.error('Neither isMainPage with formData nor entryId is available');
       }
       setShowAdjustment(false);
       setAdjustmentText('');
@@ -296,7 +325,10 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
                   Cancel
                 </button>
                 <button
-                  onClick={handleAdjust}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleAdjust();
+                  }}
                   disabled={isResubmitting}
                   className={`bg-gradient-to-r from-teal-500 to-teal-600 text-white px-6 py-2 rounded-full hover:from-teal-600 hover:to-teal-700 ${plusJakarta.className} text-sm transition-all ${
                     isResubmitting ? 'opacity-50 cursor-not-allowed' : ''
@@ -322,7 +354,7 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
         </div>
       )}
 
-      {!isMainPage && (
+      {/* {!isMainPage && (
         <div className="mt-8 text-center">
           <Link
             href="/"
@@ -331,7 +363,7 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
             Try Again
           </Link>
         </div>
-      )}
+      )} */}
     </div>
   );
 };

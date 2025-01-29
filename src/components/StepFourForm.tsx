@@ -263,6 +263,14 @@ const StepFourForm: React.FC<StepFourFormProps> = ({ previousResponses, onSubmit
                   angles={llmResponse.solutions}
                   isLoading={isLoading}
                   isMainPage={true}
+                  formData={{
+                    ...previousResponses,
+                    assumption: submittedData?.text,
+                    assumptionRating: submittedData?.rating
+                  }}
+                  onResubmit={(result) => {
+                    setLlmResponse(result);
+                  }}
                 />
               </div>
 
