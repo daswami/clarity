@@ -204,8 +204,8 @@ Keep the tone empathetic but direct, and ensure each solution is practical and a
     }
 
     res.status(200).json({ 
-      success: true,
-      data: structuredResponse
+      message: 'Success',
+      result: structuredResponse
     });
   } catch (error: any) {
     console.error('Error calling Gemini API:', error);

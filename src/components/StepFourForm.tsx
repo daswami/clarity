@@ -101,8 +101,8 @@ const StepFourForm: React.FC<StepFourFormProps> = ({ previousResponses, onSubmit
       }
 
       const result = await response.json();
-      if (result.data) {
-        setLlmResponse(result.data);
+      if (result.result) {
+        setLlmResponse(result.result);
         setShowAngles(true);
       }
     } catch (error) {

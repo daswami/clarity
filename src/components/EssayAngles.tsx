@@ -131,32 +131,6 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
     }
   };
 
-  const handleResubmit = async () => {
-    if (!formData || !onResubmit) return;
-    
-    setIsResubmitting(true);
-    try {
-      const response = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ formData }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get response');
-      }
-
-      const result = await response.json();
-      onResubmit(result);
-    } catch (error) {
-      console.error('Error resubmitting:', error);
-    } finally {
-      setIsResubmitting(false);
-    }
-  };
-
   const handleAdjust = async () => {
     if (!adjustmentText.trim()) {
       setAdjustmentError('Please fill in the adjustments');
