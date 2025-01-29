@@ -196,12 +196,12 @@ const HomePage = () => {
         <Link href="/" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">Home</Link>
         <Link href="/save" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">Saved Solutions</Link>
         <Link href="/history" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">History</Link>
-        <button 
+        {/* <button 
           onClick={handleToolsClick}
           className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors"
         >
           Tools
-        </button>
+        </button> */}
       </div>
 
       {/* Right Content Section */}

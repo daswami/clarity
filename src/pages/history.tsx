@@ -256,16 +256,25 @@ export default function History() {
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="text-center py-8">
-          <p className={`text-gray-600 ${inter.className}`}>Loading...</p>
+        <div className="flex justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
         </div>
       );
     }
-    
+
     if (error) {
+      return <div className="text-center text-red-500">{error}</div>;
+    }
+
+    if (!historyEntries || historyEntries.length === 0) {
       return (
-        <div className="text-center py-8">
-          <p className={`text-red-600 ${inter.className}`}>{error}</p>
+        <div>
+          <h1 className={`text-3xl font-bold text-gray-800 mb-8 ${quicksand.className}`}>
+            History
+          </h1>
+          <p className={`text-gray-500 ${inter.className}`}>
+            Your history will show up here. Start a conversation to get insights and solutions!
+          </p>
         </div>
       );
     }
@@ -284,11 +293,11 @@ export default function History() {
         <Link href="/" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">Home</Link>
         <Link href="/save" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">Saved Solutions</Link>
         <Link href="/history" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">History</Link>
-        <Link href="/" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">Tools</Link>
+        {/* <Link href="/" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">Tools</Link> */}
       </div>
 
       {/* Right Content Section */}
-      <div className="w-5/6 h-screen overflow-auto bg-gradient-to-br from-purple-100 via-blue-50 to-purple-200 p-8">
+      <div className="w-5/6 h-screen overflow-auto bg-gradient-to-br from-rose-100 via-amber-50 to-teal-100 p-8">
         <div className="max-w-4xl mx-auto">
           {renderContent()}
         </div>

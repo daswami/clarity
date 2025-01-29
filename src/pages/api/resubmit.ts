@@ -124,7 +124,10 @@ Keep the tone empathetic but direct, and ensure each solution is practical and a
 
     // Generate content
     const result = await geminiModel.generateContent(prompt);
-    const response = await result.response.text();
+    let response = await result.response.text();
+
+    response = sanitizeJSON(response);
+    console.log(response);
 
     // Parse the response
     const titleMatch = response.match(/TITLE: (.*)/);

@@ -22,11 +22,25 @@ const sanitizeJSON = (rawOutput: string) => {
   // Remove backticks and the word "json"
   sanitized = sanitized.replace(/```json|```/g, "");
 
+  // Remove all occurrences of "**"
+  sanitized = sanitized.replace(/\*\*/g, "");
+
+  // Replace bullet points with proper format
+  sanitized = sanitized.replace(/\n\s*-\s*/g, "\n");
+
+  // Fix missing SOLUTION_X_DESCRIPTION headers
+  sanitized = sanitized.replace(/SOLUTION_(\d)_TITLE:([^\n]*)\n(?!SOLUTION_\1_DESCRIPTION:)(What It Is:)/g, 
+    "SOLUTION_$1_TITLE:$2\nSOLUTION_$1_DESCRIPTION: $3");
+
+  // Remove extra newlines before and after section headers
+  sanitized = sanitized.replace(/\n\s*\n(TITLE|INSIGHT|SOLUTION_\d_TITLE|SOLUTION_\d_DESCRIPTION|CHALLENGE):/g, "\n$1:");
+  sanitized = sanitized.replace(/(TITLE|INSIGHT|SOLUTION_\d_TITLE|SOLUTION_\d_DESCRIPTION|CHALLENGE):\s*\n\s*\n/g, "$1: ");
+
+  // Ensure CHALLENGE is on the same line as its text
+  sanitized = sanitized.replace(/CHALLENGE:\s*\n+/g, "CHALLENGE: ");
+
   // Escape double quotes inside strings
   sanitized = sanitized.replace(/(?<!\\)"/g, '\\"').replace(/\\"/g, '"');
-
-  // Remove non-standard quotation marks
-  // sanitized = sanitized.replace(/[‘’“”]/g, '"');
 
   // Ensure brackets are balanced
   const openBrackets = (sanitized.match(/\[/g) || []).length;
@@ -117,6 +131,9 @@ Keep the tone empathetic but direct, and ensure each solution is practical and a
     // Remove the backticks and optional "json" after the opening backticks
     let response = await result.response.text();
 
+    response = sanitizeJSON(response);
+    console.log(response);
+
     // Parse the response
     const titleMatch = response.match(/TITLE: (.*)/);
     const insightMatch = response.match(/INSIGHT: ([\s\S]*?)(?=SOLUTION_1_TITLE:)/);
@@ -147,6 +164,8 @@ Keep the tone empathetic but direct, and ensure each solution is practical and a
       ],
       challenge: challengeMatch ? challengeMatch[1].trim() : ''
     };
+
+    console.log(structuredResponse);
 
     // Insert the form data and LLM output into Supabase history table
     const supabaseUrl = process.env.SUPABASE_URL as string;

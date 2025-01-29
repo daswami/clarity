@@ -80,11 +80,11 @@ export default function SavedCards() {
         <Link href="/" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">Home</Link>
         <Link href="/save" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">Saved Solutions</Link>
         <Link href="/history" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">History</Link>
-        <Link href="/" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">Tools</Link>
+        {/* <Link href="/" className="text-gray-700 hover:text-teal-700 text-lg mb-4 transition-colors">Tools</Link> */}
       </div>
 
       {/* Right Content Section */}
-      <div className="w-5/6 h-screen overflow-auto bg-gradient-to-br from-teal-50 via-white to-rose-50 p-8">
+      <div className="w-5/6 h-screen overflow-auto bg-gradient-to-br from-rose-100 via-amber-50 to-teal-100 p-8">
         <div className="max-w-4xl mx-auto">
           <h1 className={`text-3xl font-bold text-gray-800 mb-8 ${quicksand.className}`}>
             Saved Solutions
@@ -97,7 +97,7 @@ export default function SavedCards() {
           ) : error ? (
             <div className="text-center text-red-500">{error}</div>
           ) : cards.length === 0 ? (
-            <p className={`text-gray-500 text-center ${inter.className}`}>
+            <p className={`text-gray-500  ${inter.className}`}>
               Your saved solutions will show up here. Save a solution by clicking the bookmark icon!
             </p>
           ) : (
@@ -107,10 +107,14 @@ export default function SavedCards() {
                   key={card.id}
                   className="bg-white/80 backdrop-blur rounded-2xl p-6 shadow-sm relative"
                 >
-                  <BookmarkIcon
-                    isSaved={true}
+                  <button className="absolute top-4 right-4"
                     onClick={(e) => handleUnsave(card.id, e)}
-                  />
+                  >
+                    <BookmarkIcon
+                      isSaved={true}
+                      
+                    />
+                  </button>
                   <h3 className={`text-gray-800 font-bold mb-2 mt-1 ${quicksand.className}`}>
                     {card.title}
                   </h3>

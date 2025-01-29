@@ -23,6 +23,11 @@ interface Angle {
   description: string;
 }
 
+interface SavedCard {
+  id: number;
+  index: number;
+}
+
 interface EssayAnglesProps {
   angles: Angle[];
   isLoading: boolean;
@@ -40,11 +45,36 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
   isMainPage = false,
   entryId
 }) => {
-  const [savedCards, setSavedCards] = useState<{index: number}[]>([]);
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [isResubmitting, setIsResubmitting] = useState(false);
   const [showAdjustment, setShowAdjustment] = useState(false);
   const [adjustmentText, setAdjustmentText] = useState('');
   const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch saved cards on component mount
+    const fetchSavedCards = async () => {
+      try {
+        const response = await fetch('/api/cards');
+        if (!response.ok) {
+          throw new Error('Failed to fetch saved cards');
+        }
+        const { data } = await response.json();
+        // Map the saved cards to their indices in the current angles array
+        const savedIndices = data.map((card: any) => ({
+          id: card.id,
+          index: angles.findIndex(angle => 
+            angle.title === card.title && angle.description === card.description
+          )
+        })).filter((card: SavedCard) => card.index !== -1);
+        setSavedCards(savedIndices);
+      } catch (error) {
+        console.error('Error fetching saved cards:', error);
+      }
+    };
+
+    fetchSavedCards();
+  }, [angles]);
 
   const handleSaveCard = async (angle: Angle, index: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -52,35 +82,30 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
     const isCurrentlySaved = savedCards.some(card => card.index === index);
 
     if (isCurrentlySaved) {
-      // Remove from Saved Solutions
-      setSavedCards(prev => prev.filter(card => card.index !== index));
+      // Find the card ID for deletion
+      const cardToDelete = savedCards.find(card => card.index === index);
+      if (!cardToDelete) {
+        console.error('Could not find card ID for deletion');
+        return;
+      }
 
       try {
-        const response = await fetch('/api/saved', {
+        const response = await fetch(`/api/cards?id=${cardToDelete.id}`, {
           method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: angle.title,
-            description: angle.description,
-          }),
         });
 
         if (!response.ok) {
           throw new Error('Failed to remove saved card');
         }
+
+        // Remove from savedCards state
+        setSavedCards(prev => prev.filter(card => card.index !== index));
       } catch (error) {
         console.error('Error removing saved card:', error);
-        // Revert the UI state if the API call fails
-        setSavedCards(prev => [...prev, { index }]);
       }
     } else {
-      // Add to Saved Solutions
-      setSavedCards(prev => [...prev, { index }]);
-
       try {
-        const response = await fetch('/api/saved', {
+        const response = await fetch('/api/cards', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -94,10 +119,14 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
         if (!response.ok) {
           throw new Error('Failed to save card');
         }
+
+        const { data } = await response.json();
+        
+        // Add to savedCards with the new ID from the response
+        // The server should always return an ID, but if it doesn't, we'll just use a temporary one
+        setSavedCards(prev => [...prev, { id: data?.id || -1, index }]);
       } catch (error) {
         console.error('Error saving card:', error);
-        // Revert the UI state if the API call fails
-        setSavedCards(prev => prev.filter(card => card.index !== index));
       }
     }
   };
@@ -219,9 +248,7 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
         {angles.map((angle, index) => (
           <div
             key={index}
-            className={`bg-white/80 backdrop-blur rounded-lg p-6 shadow-sm ${
-              isMainPage ? '' : 'hover:shadow-md transition-shadow cursor-pointer'
-            }`}
+            className={`bg-white/80 backdrop-blur rounded-lg p-6 shadow-sm relative`}
           >
             <div className="flex justify-between items-start gap-4">
               <div className="flex-grow">
@@ -253,14 +280,13 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
                   })}
                 </div>
               </div>
-              {!isMainPage && (
-                <button
-                  onClick={(e) => handleSaveCard(angle, index, e)}
-                  className="flex-shrink-0 text-gray-400 hover:text-gray-600"
-                >
-                  <BookmarkIcon isSaved={savedCards.some(card => card.index === index)} />
-                </button>
-              )}
+              <button
+                onClick={(e) => handleSaveCard(angle, index, e)}
+                className="flex-shrink-0 p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title={savedCards.some(card => card.index === index) ? "Remove from saved solutions" : "Save solution"}
+              >
+                <BookmarkIcon isSaved={savedCards.some(card => card.index === index)} />
+              </button>
             </div>
           </div>
         ))}

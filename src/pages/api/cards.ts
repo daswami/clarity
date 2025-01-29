@@ -31,6 +31,7 @@ export default async function handler(
       res.status(500).json({ error: 'Failed to fetch cards' });
     }
   } else if (req.method === 'POST') {
+    console.log(req.body);
     const { title, description, tool } = req.body;
 
     try {
