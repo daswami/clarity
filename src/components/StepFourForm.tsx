@@ -4,6 +4,7 @@ import { Quicksand, Inter, Plus_Jakarta_Sans } from "next/font/google";
 import StarRating from './StarRating';
 import ResponseCard from './ResponseCard';
 import EssayAngles from './EssayAngles';
+import { getUserSession } from '../utils/auth';
 
 const quicksand = Quicksand({
   weight: '700',
@@ -83,11 +84,16 @@ const StepFourForm: React.FC<StepFourFormProps> = ({ previousResponses, onSubmit
     setIsEditable(false);
     
     try {
-      console.log(previousResponses);
+      const { userId } = getUserSession();
+      if (!userId) {
+        throw new Error('Not authenticated');
+      }
+
       const response = await fetch('/api/gemini', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': userId
         },
         body: JSON.stringify({
           ...previousResponses,

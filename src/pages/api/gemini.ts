@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import { withAuth } from '../../middleware/auth';
 
 dotenv.config();
 
@@ -68,11 +69,12 @@ export default async function handler(
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  try {
-    const formData = req.body;
-    
-    // Create prompt from form data
-    const prompt = `As an empathetic AI coach, analyze the following responses about a personal dilemma and provide structured guidance:
+  await withAuth(req, res, async (userId) => {
+    try {
+      const formData = req.body;
+      
+      // Create prompt from form data
+      const prompt = `As an empathetic AI coach, analyze the following responses about a personal dilemma and provide structured guidance:
 
 Decision: ${formData.decision} (${formData.decisionRating} stars)
 Emotional State: ${formData.emotion} (${formData.emotionRating} stars)
@@ -116,97 +118,99 @@ CHALLENGE: [Your Final Challenge]
 
 Keep the tone empathetic but direct, and ensure each solution is practical and actionable.`;
 
-    // Initialize Gemini
-    const geminiApiKey: string = process.env.GOOGLE_API_KEY ?? '';
-    const googleAI = new GoogleGenerativeAI(geminiApiKey);
-    const geminiModel = googleAI.getGenerativeModel({
-      model: "gemini-pro",
-    });
+      // Initialize Gemini
+      const geminiApiKey: string = process.env.GOOGLE_API_KEY ?? '';
+      const googleAI = new GoogleGenerativeAI(geminiApiKey);
+      const geminiModel = googleAI.getGenerativeModel({
+        model: "gemini-pro",
+      });
 
-    // Generate content
-    const result = await geminiModel.generateContent(prompt);
+      // Generate content
+      const result = await geminiModel.generateContent(prompt);
 
-    // Remove the backticks and optional "json" after the opening backticks
-    let response = await result.response.text();
+      // Remove the backticks and optional "json" after the opening backticks
+      let response = await result.response.text();
 
-    response = sanitizeJSON(response);
-    console.log(response);
+      response = sanitizeJSON(response);
+      console.log(response);
 
-    // Parse the response
-    const titleMatch = response.match(/TITLE: (.*)/);
-    const insightMatch = response.match(/INSIGHT: ([\s\S]*?)(?=SOLUTION_1_TITLE:)/);
-    const solution1TitleMatch = response.match(/SOLUTION_1_TITLE: (.*)/);
-    const solution1DescMatch = response.match(/SOLUTION_1_DESCRIPTION: ([\s\S]*?)(?=SOLUTION_2_TITLE:)/);
-    const solution2TitleMatch = response.match(/SOLUTION_2_TITLE: (.*)/);
-    const solution2DescMatch = response.match(/SOLUTION_2_DESCRIPTION: ([\s\S]*?)(?=SOLUTION_3_TITLE:)/);
-    const solution3TitleMatch = response.match(/SOLUTION_3_TITLE: (.*)/);
-    const solution3DescMatch = response.match(/SOLUTION_3_DESCRIPTION: ([\s\S]*?)(?=CHALLENGE:)/);
-    const challengeMatch = response.match(/CHALLENGE: (.*)/);
+      // Parse the response
+      const titleMatch = response.match(/TITLE: (.*)/);
+      const insightMatch = response.match(/INSIGHT: ([\s\S]*?)(?=SOLUTION_1_TITLE:)/);
+      const solution1TitleMatch = response.match(/SOLUTION_1_TITLE: (.*)/);
+      const solution1DescMatch = response.match(/SOLUTION_1_DESCRIPTION: ([\s\S]*?)(?=SOLUTION_2_TITLE:)/);
+      const solution2TitleMatch = response.match(/SOLUTION_2_TITLE: (.*)/);
+      const solution2DescMatch = response.match(/SOLUTION_2_DESCRIPTION: ([\s\S]*?)(?=SOLUTION_3_TITLE:)/);
+      const solution3TitleMatch = response.match(/SOLUTION_3_TITLE: (.*)/);
+      const solution3DescMatch = response.match(/SOLUTION_3_DESCRIPTION: ([\s\S]*?)(?=CHALLENGE:)/);
+      const challengeMatch = response.match(/CHALLENGE: (.*)/);
 
-    const structuredResponse = {
-      title: titleMatch ? titleMatch[1].trim() : '',
-      insight: insightMatch ? insightMatch[1].trim() : '',
-      solutions: [
-        {
-          title: solution1TitleMatch ? solution1TitleMatch[1].trim() : '',
-          description: solution1DescMatch ? solution1DescMatch[1].trim() : ''
-        },
-        {
-          title: solution2TitleMatch ? solution2TitleMatch[1].trim() : '',
-          description: solution2DescMatch ? solution2DescMatch[1].trim() : ''
-        },
-        {
-          title: solution3TitleMatch ? solution3TitleMatch[1].trim() : '',
-          description: solution3DescMatch ? solution3DescMatch[1].trim() : ''
-        }
-      ],
-      challenge: challengeMatch ? challengeMatch[1].trim() : ''
-    };
+      const structuredResponse = {
+        title: titleMatch ? titleMatch[1].trim() : '',
+        insight: insightMatch ? insightMatch[1].trim() : '',
+        solutions: [
+          {
+            title: solution1TitleMatch ? solution1TitleMatch[1].trim() : '',
+            description: solution1DescMatch ? solution1DescMatch[1].trim() : ''
+          },
+          {
+            title: solution2TitleMatch ? solution2TitleMatch[1].trim() : '',
+            description: solution2DescMatch ? solution2DescMatch[1].trim() : ''
+          },
+          {
+            title: solution3TitleMatch ? solution3TitleMatch[1].trim() : '',
+            description: solution3DescMatch ? solution3DescMatch[1].trim() : ''
+          }
+        ],
+        challenge: challengeMatch ? challengeMatch[1].trim() : ''
+      };
 
-    console.log(structuredResponse);
+      console.log(structuredResponse);
 
-    // Insert the form data and LLM output into Supabase history table
-    const supabaseUrl = process.env.SUPABASE_URL as string;
-    const supabaseKey = process.env.SUPABASE_KEY as string;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    const { error: insertError } = await supabase
-      .from('history')
-      .insert([{
-        decision: formData.decision,
-        decisionstars: formData.decisionRating,
-        emotion: formData.emotion,
-        emotionstars: formData.emotionRating,
-        today: formData.today,
-        todaystars: formData.todayRating,
-        fear: formData.fear,
-        fearstars: formData.fearRating,
-        future: formData.future,
-        futurestars: formData.futureRating,
-        friend: formData.friend,
-        friendstars: formData.friendRating,
-        assumption: formData.assumption,
-        assumptionstars: formData.assumptionRating,
-        title: structuredResponse.title,
-        insight: structuredResponse.insight,
-        conetitle: structuredResponse.solutions[0].title,
-        conedesc: structuredResponse.solutions[0].description,
-        ctwotitle: structuredResponse.solutions[1].title,
-        ctwodesc: structuredResponse.solutions[1].description,
-        cthreetitle: structuredResponse.solutions[2].title,
-        cthreedesc: structuredResponse.solutions[2].description,
-        challenge: structuredResponse.challenge,
-      }]);
+      // Insert the form data and LLM output into Supabase history table
+      const supabaseUrl = process.env.SUPABASE_URL as string;
+      const supabaseKey = process.env.SUPABASE_KEY as string;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      const { error: insertError } = await supabase
+        .from('history')
+        .insert([{
+          user_id: userId,
+          decision: formData.decision,
+          decisionstars: formData.decisionRating,
+          emotion: formData.emotion,
+          emotionstars: formData.emotionRating,
+          today: formData.today,
+          todaystars: formData.todayRating,
+          fear: formData.fear,
+          fearstars: formData.fearRating,
+          future: formData.future,
+          futurestars: formData.futureRating,
+          friend: formData.friend,
+          friendstars: formData.friendRating,
+          assumption: formData.assumption,
+          assumptionstars: formData.assumptionRating,
+          title: structuredResponse.title,
+          insight: structuredResponse.insight,
+          conetitle: structuredResponse.solutions[0].title,
+          conedesc: structuredResponse.solutions[0].description,
+          ctwotitle: structuredResponse.solutions[1].title,
+          ctwodesc: structuredResponse.solutions[1].description,
+          cthreetitle: structuredResponse.solutions[2].title,
+          cthreedesc: structuredResponse.solutions[2].description,
+          challenge: structuredResponse.challenge,
+        }]);
 
-    if (insertError) {
-      console.error('Error inserting into history:', insertError);
+      if (insertError) {
+        console.error('Error inserting into history:', insertError);
+      }
+
+      res.status(200).json({ 
+        message: 'Success',
+        result: structuredResponse
+      });
+    } catch (error: any) {
+      console.error('Error calling Gemini API:', error);
+      res.status(500).json({ message: 'Error generating essay angles', result: error.message });
     }
-
-    res.status(200).json({ 
-      message: 'Success',
-      result: structuredResponse
-    });
-  } catch (error: any) {
-    console.error('Error calling Gemini API:', error);
-    res.status(500).json({ message: 'Error generating essay angles', result: error.message });
-  }
+  });
 }

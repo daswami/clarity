@@ -3,6 +3,8 @@ import { Quicksand, Inter, Plus_Jakarta_Sans } from "next/font/google";
 import Link from 'next/link';
 import ResponseCard from '../components/ResponseCard';
 import EssayAngles from '../components/EssayAngles';
+import UsernameForm from '../components/UsernameForm';
+import { isAuthenticated, getUserSession } from '../utils/auth';
 
 const quicksand = Quicksand({
   weight: '700',
@@ -48,30 +50,48 @@ interface HistoryEntry {
 }
 
 export default function History() {
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const response = await fetch('/api/history');
-        if (!response.ok) {
-          throw new Error('Failed to fetch history');
-        }
-        const { data } = await response.json();
-        setHistoryEntries(data || []);
-      } catch (err) {
-        console.error('Error fetching history:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch history');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchHistory();
+    setIsUserAuthenticated(isAuthenticated());
   }, []);
+
+  useEffect(() => {
+    if (isUserAuthenticated) {
+      fetchHistoryData();
+    }
+  }, [isUserAuthenticated]);
+
+  const fetchHistoryData = async () => {
+    try {
+      const { userId } = getUserSession();
+      const response = await fetch('/api/history', {
+        headers: {
+          'x-user-id': userId
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch history');
+      const { data } = await response.json();
+      setHistoryEntries(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch history');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleComplete = () => {
+    setIsUserAuthenticated(true);
+  };
+
+  if (!isUserAuthenticated) {
+    return <UsernameForm onComplete={handleComplete} />;
+  }
 
   const handleDelete = async (id: number, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();

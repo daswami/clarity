@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from 'dotenv';
+import { withAuth } from '../../middleware/auth';
 
 dotenv.config();
 
@@ -60,30 +61,33 @@ export default async function handler(
   res: NextApiResponse<Data>
 ) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  try {
-    const { id, adjustments } = req.body;
+  await withAuth(req, res, async (userId) => {
+    try {
+      const { id, adjustments } = req.body;
 
-    // Fetch the entry from Supabase
-    const supabaseUrl = process.env.SUPABASE_URL as string;
-    const supabaseKey = process.env.SUPABASE_KEY as string;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+      // Fetch the entry from Supabase
+      const supabaseUrl = process.env.SUPABASE_URL as string;
+      const supabaseKey = process.env.SUPABASE_KEY as string;
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: entry, error: fetchError } = await supabase
-      .from('history')
-      .select('*')
-      .eq('id', id)
-      .single();
+      // Verify the entry belongs to the user
+      const { data: entry, error: fetchError } = await supabase
+        .from('history')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', userId)
+        .single();
 
-    if (fetchError || !entry) {
-      console.error('Error fetching entry:', fetchError);
-      return res.status(404).json({ message: 'Entry not found' });
-    }
+      if (fetchError || !entry) {
+        console.error('Error fetching entry:', fetchError);
+        return res.status(403).json({ message: 'Not authorized to adjust this entry' });
+      }
 
-    // Create the prompt with the fetched data
-    const prompt = `As an empathetic AI coach, analyze the following responses about a personal dilemma and provide structured guidance:
+      // Create the prompt with the fetched data
+      const prompt = `As an empathetic AI coach, analyze the following responses about a personal dilemma and provide structured guidance:
 
 Decision: ${entry.decision}
 Emotional State: ${entry.emotion}
@@ -138,76 +142,77 @@ CHALLENGE: [Your Final Challenge]
 
 Keep the tone empathetic but direct, and ensure each solution is practical and actionable.`;
 
-    // Initialize Gemini
-    const geminiApiKey: string = process.env.GOOGLE_API_KEY ?? '';
-    const googleAI = new GoogleGenerativeAI(geminiApiKey);
-    const geminiModel = googleAI.getGenerativeModel({
-      model: "gemini-pro",
-    });
+      // Initialize Gemini
+      const geminiApiKey: string = process.env.GOOGLE_API_KEY ?? '';
+      const googleAI = new GoogleGenerativeAI(geminiApiKey);
+      const geminiModel = googleAI.getGenerativeModel({
+        model: "gemini-pro",
+      });
 
-    // Generate content
-    const result = await geminiModel.generateContent(prompt);
-    let response = await result.response.text();
-    console.log(response);
+      // Generate content
+      const result = await geminiModel.generateContent(prompt);
+      let response = await result.response.text();
+      console.log(response);
 
-    response = sanitizeJSON(response);
-    console.log(response);
+      response = sanitizeJSON(response);
+      console.log(response);
 
-    // Parse the response
-    const titleMatch = response.match(/TITLE: (.*)/);
-    const insightMatch = response.match(/INSIGHT: ([\s\S]*?)(?=SOLUTION_1_TITLE:)/);
-    const solution1TitleMatch = response.match(/SOLUTION_1_TITLE: (.*)/);
-    const solution1DescMatch = response.match(/SOLUTION_1_DESCRIPTION: ([\s\S]*?)(?=SOLUTION_2_TITLE:)/);
-    const solution2TitleMatch = response.match(/SOLUTION_2_TITLE: (.*)/);
-    const solution2DescMatch = response.match(/SOLUTION_2_DESCRIPTION: ([\s\S]*?)(?=SOLUTION_3_TITLE:)/);
-    const solution3TitleMatch = response.match(/SOLUTION_3_TITLE: (.*)/);
-    const solution3DescMatch = response.match(/SOLUTION_3_DESCRIPTION: ([\s\S]*?)(?=CHALLENGE:)/);
-    const challengeMatch = response.match(/CHALLENGE: (.*)/);
+      // Parse the response
+      const titleMatch = response.match(/TITLE: (.*)/);
+      const insightMatch = response.match(/INSIGHT: ([\s\S]*?)(?=SOLUTION_1_TITLE:)/);
+      const solution1TitleMatch = response.match(/SOLUTION_1_TITLE: (.*)/);
+      const solution1DescMatch = response.match(/SOLUTION_1_DESCRIPTION: ([\s\S]*?)(?=SOLUTION_2_TITLE:)/);
+      const solution2TitleMatch = response.match(/SOLUTION_2_TITLE: (.*)/);
+      const solution2DescMatch = response.match(/SOLUTION_2_DESCRIPTION: ([\s\S]*?)(?=SOLUTION_3_TITLE:)/);
+      const solution3TitleMatch = response.match(/SOLUTION_3_TITLE: (.*)/);
+      const solution3DescMatch = response.match(/SOLUTION_3_DESCRIPTION: ([\s\S]*?)(?=CHALLENGE:)/);
+      const challengeMatch = response.match(/CHALLENGE: (.*)/);
 
-    const structuredResponse = {
-      title: titleMatch ? titleMatch[1].trim() : '',
-      insight: insightMatch ? insightMatch[1].trim() : '',
-      solutions: [
-        {
-          title: solution1TitleMatch ? solution1TitleMatch[1].trim() : '',
-          description: solution1DescMatch ? solution1DescMatch[1].trim() : ''
-        },
-        {
-          title: solution2TitleMatch ? solution2TitleMatch[1].trim() : '',
-          description: solution2DescMatch ? solution2DescMatch[1].trim() : ''
-        },
-        {
-          title: solution3TitleMatch ? solution3TitleMatch[1].trim() : '',
-          description: solution3DescMatch ? solution3DescMatch[1].trim() : ''
-        }
-      ],
-      challenge: challengeMatch ? challengeMatch[1].trim() : ''
-    };
+      const structuredResponse = {
+        title: titleMatch ? titleMatch[1].trim() : '',
+        insight: insightMatch ? insightMatch[1].trim() : '',
+        solutions: [
+          {
+            title: solution1TitleMatch ? solution1TitleMatch[1].trim() : '',
+            description: solution1DescMatch ? solution1DescMatch[1].trim() : ''
+          },
+          {
+            title: solution2TitleMatch ? solution2TitleMatch[1].trim() : '',
+            description: solution2DescMatch ? solution2DescMatch[1].trim() : ''
+          },
+          {
+            title: solution3TitleMatch ? solution3TitleMatch[1].trim() : '',
+            description: solution3DescMatch ? solution3DescMatch[1].trim() : ''
+          }
+        ],
+        challenge: challengeMatch ? challengeMatch[1].trim() : ''
+      };
 
-    // Update the entry in Supabase
-    const { error: updateError } = await supabase
-      .from('history')
-      .update({
-        title: structuredResponse.title,
-        insight: structuredResponse.insight,
-        conetitle: structuredResponse.solutions[0].title,
-        conedesc: structuredResponse.solutions[0].description,
-        ctwotitle: structuredResponse.solutions[1].title,
-        ctwodesc: structuredResponse.solutions[1].description,
-        cthreetitle: structuredResponse.solutions[2].title,
-        cthreedesc: structuredResponse.solutions[2].description,
-        challenge: structuredResponse.challenge,
-      })
-      .eq('id', id);
+      // Update the entry in Supabase
+      const { error: updateError } = await supabase
+        .from('history')
+        .update({
+          title: structuredResponse.title,
+          insight: structuredResponse.insight,
+          conetitle: structuredResponse.solutions[0].title,
+          conedesc: structuredResponse.solutions[0].description,
+          ctwotitle: structuredResponse.solutions[1].title,
+          ctwodesc: structuredResponse.solutions[1].description,
+          cthreetitle: structuredResponse.solutions[2].title,
+          cthreedesc: structuredResponse.solutions[2].description,
+          challenge: structuredResponse.challenge,
+        })
+        .eq('id', id);
 
-    if (updateError) {
-      console.error('Error updating entry:', updateError);
-      return res.status(500).json({ message: 'Failed to update entry' });
+      if (updateError) {
+        console.error('Error updating entry:', updateError);
+        return res.status(500).json({ message: 'Failed to update entry' });
+      }
+
+      res.status(200).json({ message: 'Success', result: structuredResponse });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Failed to process request' });
     }
-
-    res.status(200).json({ message: 'Success', result: structuredResponse });
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ message: 'Failed to process request' });
-  }
+  });
 }

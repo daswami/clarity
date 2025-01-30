@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Quicksand, Inter, Plus_Jakarta_Sans } from "next/font/google";
 import Link from 'next/link';
 import BookmarkIcon from '../components/BookmarkIcon';
+import { getUserSession } from '../utils/auth';
 
 const quicksand = Quicksand({
   weight: '700',
@@ -34,15 +35,26 @@ export default function SavedCards() {
   useEffect(() => {
     const fetchCards = async () => {
       try {
-        const response = await fetch('/api/cards');
+        const { userId } = getUserSession();
+        if (!userId) {
+          return;
+        }
+
+        const response = await fetch('/api/cards', {
+          headers: {
+            'x-user-id': userId
+          }
+        });
+
         if (!response.ok) {
           throw new Error('Failed to fetch cards');
         }
+
         const { data } = await response.json();
         setCards(data || []);
       } catch (err) {
         console.error('Error fetching cards:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch cards');
+        setError('Failed to load saved cards');
       } finally {
         setIsLoading(false);
       }
@@ -55,8 +67,17 @@ export default function SavedCards() {
     e.stopPropagation();
     
     try {
+      const { userId } = getUserSession();
+      if (!userId) {
+        setError('Not authenticated');
+        return;
+      }
+
       const response = await fetch(`/api/cards?id=${id}`, {
         method: 'DELETE',
+        headers: {
+          'x-user-id': userId
+        }
       });
 
       if (!response.ok) {
@@ -91,11 +112,20 @@ export default function SavedCards() {
           </h1>
 
           {isLoading ? (
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-            </div>
+            // Loading skeleton for cards
+            <>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white rounded-lg shadow-md p-6 animate-pulse">
+                  <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                </div>
+              ))}
+            </>
           ) : error ? (
-            <div className="text-center text-red-500">{error}</div>
+            <div className="text-red-500 bg-red-50 p-4 rounded-lg">
+              {error}
+            </div>
           ) : cards.length === 0 ? (
             <p className={`text-gray-500  ${inter.className}`}>
               Your saved solutions will show up here. Save a solution by clicking the bookmark icon!

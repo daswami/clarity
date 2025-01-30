@@ -5,6 +5,8 @@ import StepOneForm from "../components/StepOneForm";
 import StepTwoForm from "../components/StepTwoForm";
 import StepThreeForm from "../components/StepThreeForm";
 import StepFourForm from "../components/StepFourForm";
+import UsernameForm from "../components/UsernameForm";
+import { isAuthenticated } from "../utils/auth";
 
 const quicksand = Quicksand({
   weight: '700',
@@ -21,9 +23,10 @@ const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
 });
 
-const HomePage = () => {
+export default function HomePage() {
   const [showForm, setShowForm] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const [formData, setFormData] = useState({
     decision: '',
     decisionRating: 0,
@@ -117,6 +120,14 @@ const HomePage = () => {
   };
 
   useEffect(() => {
+    setIsUserAuthenticated(isAuthenticated());
+  }, []);
+
+  const handleComplete = () => {
+    setIsUserAuthenticated(true);
+  };
+
+  useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
@@ -185,6 +196,10 @@ const HomePage = () => {
     }
   };
 
+  if (!isUserAuthenticated) {
+    return <UsernameForm onComplete={handleComplete} />;
+  }
+
   return (
     <div className="flex h-screen">
       {/* Left Menu Section */}
@@ -244,5 +259,3 @@ const HomePage = () => {
       </div>
   );
 };
-
-export default HomePage;

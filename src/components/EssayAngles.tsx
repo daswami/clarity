@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Inter, Quicksand, Plus_Jakarta_Sans } from "next/font/google";
 import BookmarkIcon from './BookmarkIcon';
 import Link from 'next/link';
+import { getUserSession } from '../utils/auth';
 
 const inter = Inter({
   weight: ['400', '500'],
@@ -55,7 +56,16 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
     // Fetch saved cards on component mount
     const fetchSavedCards = async () => {
       try {
-        const response = await fetch('/api/cards');
+        const { userId } = getUserSession();
+        if (!userId) {
+          throw new Error('Not authenticated');
+        }
+
+        const response = await fetch('/api/cards', {
+          headers: {
+            'x-user-id': userId
+          }
+        });
         if (!response.ok) {
           throw new Error('Failed to fetch saved cards');
         }
@@ -79,6 +89,12 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
   const handleSaveCard = async (angle: Angle, index: number, e: React.MouseEvent) => {
     e.stopPropagation();
 
+    const { userId } = getUserSession();
+    if (!userId) {
+      console.error('Not authenticated');
+      return;
+    }
+
     const isCurrentlySaved = savedCards.some(card => card.index === index);
 
     if (isCurrentlySaved) {
@@ -92,6 +108,9 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
       try {
         const response = await fetch(`/api/cards?id=${cardToDelete.id}`, {
           method: 'DELETE',
+          headers: {
+            'x-user-id': userId
+          }
         });
 
         if (!response.ok) {
@@ -99,7 +118,7 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
         }
 
         // Remove from savedCards state
-        setSavedCards(prev => prev.filter(card => card.index !== index));
+        setSavedCards(savedCards.filter(card => card.id !== cardToDelete.id));
       } catch (error) {
         console.error('Error removing saved card:', error);
       }
@@ -109,11 +128,9 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'x-user-id': userId
           },
-          body: JSON.stringify({
-            title: angle.title,
-            description: angle.description,
-          }),
+          body: JSON.stringify(angle)
         });
 
         if (!response.ok) {
@@ -121,10 +138,8 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
         }
 
         const { data } = await response.json();
-        
-        // Add to savedCards with the new ID from the response
-        // The server should always return an ID, but if it doesn't, we'll just use a temporary one
-        setSavedCards(prev => [...prev, { id: data?.id || -1, index }]);
+        // Add to savedCards state
+        setSavedCards([...savedCards, { id: data.id, index }]);
       } catch (error) {
         console.error('Error saving card:', error);
       }
@@ -147,10 +162,16 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
       // If we're in the main page view, make a direct call to gemini API
       if (isMainPage && formData) {
         console.log('Making gemini API call...');
+        const { userId } = getUserSession();
+        if (!userId) {
+          throw new Error('Not authenticated');
+        }
+
         const response = await fetch('/api/gemini', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'x-user-id': userId
           },
           body: JSON.stringify({
             ...formData,
@@ -172,10 +193,16 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
       // If we're in history view, use the resubmit API
       else if (entryId) {
         console.log('Making resubmit API call...');
+        const { userId } = getUserSession();
+        if (!userId) {
+          throw new Error('Not authenticated');
+        }
+
         const response = await fetch('/api/resubmit', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'x-user-id': userId
           },
           body: JSON.stringify({ 
             id: entryId,
