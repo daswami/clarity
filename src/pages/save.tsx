@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Quicksand, Inter, Plus_Jakarta_Sans } from "next/font/google";
 import Link from 'next/link';
 import BookmarkIcon from '../components/BookmarkIcon';
-import { getUserSession } from '../utils/auth';
+import { getUserSession, isAuthenticated } from '../utils/auth';
+import { useRouter } from 'next/router';
 
 const quicksand = Quicksand({
   weight: '700',
@@ -28,23 +29,42 @@ interface Card {
 }
 
 export default function SavedCards() {
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState<boolean | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Check authentication immediately
+  useEffect(() => {
+    const checkAuth = () => {
+      const auth = isAuthenticated();
+      setIsUserAuthenticated(auth);
+      if (!auth) {
+        router.push('/');
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   useEffect(() => {
     const fetchCards = async () => {
+      if (isUserAuthenticated === false) {
+        return;
+      }
+
       try {
         const { userId } = getUserSession();
         if (!userId) {
+          router.push('/');
           return;
         }
 
-        const response = await fetch('/api/cards', {
-          headers: {
-            'x-user-id': userId
-          }
-        });
+        const headers: HeadersInit = {
+          'x-user-id': userId
+        };
+
+        const response = await fetch('/api/cards', { headers });
 
         if (!response.ok) {
           throw new Error('Failed to fetch cards');
@@ -54,14 +74,26 @@ export default function SavedCards() {
         setCards(data || []);
       } catch (err) {
         console.error('Error fetching cards:', err);
-        setError('Failed to load saved cards');
+        setError(err instanceof Error ? err.message : 'Failed to fetch cards');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchCards();
-  }, []);
+    if (isUserAuthenticated) {
+      fetchCards();
+    }
+  }, [isUserAuthenticated, router]);
+
+  // Show nothing while checking authentication
+  if (isUserAuthenticated === null) {
+    return null;
+  }
+
+  // If not authenticated, don't show anything (will be redirected)
+  if (!isUserAuthenticated) {
+    return null;
+  }
 
   const handleUnsave = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();

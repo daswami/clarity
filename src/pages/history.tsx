@@ -5,6 +5,7 @@ import ResponseCard from '../components/ResponseCard';
 import EssayAngles from '../components/EssayAngles';
 import UsernameForm from '../components/UsernameForm';
 import { isAuthenticated, getUserSession } from '../utils/auth';
+import { useRouter } from 'next/router';
 
 const quicksand = Quicksand({
   weight: '700',
@@ -50,47 +51,72 @@ interface HistoryEntry {
 }
 
 export default function History() {
-  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState<boolean | null>(null);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    setIsUserAuthenticated(isAuthenticated());
-  }, []);
+    const checkAuth = () => {
+      const auth = isAuthenticated();
+      setIsUserAuthenticated(auth);
+      if (!auth) {
+        router.push('/');
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   useEffect(() => {
-    if (isUserAuthenticated) {
-      fetchHistoryData();
-    }
-  }, [isUserAuthenticated]);
+    const fetchHistory = async () => {
+      if (isUserAuthenticated === false) {
+        return;
+      }
 
-  const fetchHistoryData = async () => {
-    try {
-      const { userId } = getUserSession();
-      const response = await fetch('/api/history', {
-        headers: {
-          'x-user-id': userId
+      try {
+        const { userId } = getUserSession();
+        if (!userId) {
+          router.push('/');
+          return;
         }
-      });
-      if (!response.ok) throw new Error('Failed to fetch history');
-      const { data } = await response.json();
-      setHistoryEntries(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch history');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+
+        const headers: HeadersInit = {
+          'x-user-id': userId
+        };
+
+        const response = await fetch('/api/history', { headers });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch history');
+        }
+
+        const data = await response.json();
+        setHistoryEntries(data.data || []);
+      } catch (err) {
+        console.error('Error fetching history:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch history');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isUserAuthenticated) {
+      fetchHistory();
     }
-  };
+  }, [isUserAuthenticated, router]);
 
   const handleComplete = () => {
     setIsUserAuthenticated(true);
   };
 
+  if (isUserAuthenticated === null) {
+    return null;
+  }
+
   if (!isUserAuthenticated) {
-    return <UsernameForm onComplete={handleComplete} />;
+    return null;
   }
 
   const handleDelete = async (id: number, e: React.MouseEvent<HTMLButtonElement>) => {

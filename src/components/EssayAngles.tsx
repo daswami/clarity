@@ -58,14 +58,15 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
       try {
         const { userId } = getUserSession();
         if (!userId) {
-          throw new Error('Not authenticated');
+          console.error('Not authenticated');
+          return;
         }
 
-        const response = await fetch('/api/cards', {
-          headers: {
-            'x-user-id': userId
-          }
-        });
+        const headers: HeadersInit = {
+          'x-user-id': userId
+        };
+
+        const response = await fetch('/api/cards', { headers });
         if (!response.ok) {
           throw new Error('Failed to fetch saved cards');
         }
@@ -95,54 +96,32 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
       return;
     }
 
+    // If already saved, do nothing
     const isCurrentlySaved = savedCards.some(card => card.index === index);
-
     if (isCurrentlySaved) {
-      // Find the card ID for deletion
-      const cardToDelete = savedCards.find(card => card.index === index);
-      if (!cardToDelete) {
-        console.error('Could not find card ID for deletion');
-        return;
+      return;
+    }
+
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'x-user-id': userId
+    };
+
+    try {
+      const response = await fetch('/api/cards', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(angle)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save card');
       }
 
-      try {
-        const response = await fetch(`/api/cards?id=${cardToDelete.id}`, {
-          method: 'DELETE',
-          headers: {
-            'x-user-id': userId
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to remove saved card');
-        }
-
-        // Remove from savedCards state
-        setSavedCards(savedCards.filter(card => card.id !== cardToDelete.id));
-      } catch (error) {
-        console.error('Error removing saved card:', error);
-      }
-    } else {
-      try {
-        const response = await fetch('/api/cards', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': userId
-          },
-          body: JSON.stringify(angle)
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to save card');
-        }
-
-        const { data } = await response.json();
-        // Add to savedCards state
-        setSavedCards([...savedCards, { id: data.id, index }]);
-      } catch (error) {
-        console.error('Error saving card:', error);
-      }
+      const { data } = await response.json();
+      setSavedCards([...savedCards, { id: data.id, index }]);
+    } catch (error) {
+      console.error('Error saving card:', error);
     }
   };
 
@@ -167,12 +146,14 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
           throw new Error('Not authenticated');
         }
 
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        };
+
         const response = await fetch('/api/gemini', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': userId
-          },
+          headers,
           body: JSON.stringify({
             ...formData,
             adjustments: adjustmentText
@@ -198,12 +179,14 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
           throw new Error('Not authenticated');
         }
 
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        };
+
         const response = await fetch('/api/resubmit', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': userId
-          },
+          headers,
           body: JSON.stringify({ 
             id: entryId,
             adjustments: adjustmentText 
@@ -312,8 +295,9 @@ const EssayAngles: React.FC<EssayAnglesProps> = ({
               </div>
               <button
                 onClick={(e) => handleSaveCard(angle, index, e)}
-                className="flex-shrink-0 p-2 hover:bg-gray-100 rounded-full transition-colors"
-                title={savedCards.some(card => card.index === index) ? "Remove from saved solutions" : "Save solution"}
+                className={`flex-shrink-0 p-2 ${savedCards.some(card => card.index === index) ? 'cursor-default' : 'hover:bg-gray-100'} rounded-full transition-colors`}
+                title={savedCards.some(card => card.index === index) ? "Saved! Visit saved solutions to unsave" : "Save solution"}
+                disabled={savedCards.some(card => card.index === index)}
               >
                 <BookmarkIcon isSaved={savedCards.some(card => card.index === index)} />
               </button>

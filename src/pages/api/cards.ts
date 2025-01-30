@@ -61,6 +61,7 @@ export default async function handler(
       }
     } else if (req.method === 'DELETE') {
       const { id } = req.query;
+      console.log(id);
 
       if (!id) {
         return res.status(400).json({ error: 'ID is required' });
