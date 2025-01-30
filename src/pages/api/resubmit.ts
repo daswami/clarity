@@ -23,16 +23,18 @@ const sanitizeJSON = (rawOutput: string) => {
   // Replace bullet points with proper format
   sanitized = sanitized.replace(/\n\s*-\s*/g, "\n");
 
-  // Fix missing SOLUTION_X_DESCRIPTION headers
-  sanitized = sanitized.replace(/SOLUTION_(\d)_TITLE:([^\n]*)\n(?!SOLUTION_\1_DESCRIPTION:)(What It Is:)/g, 
-    "SOLUTION_$1_TITLE:$2\nSOLUTION_$1_DESCRIPTION: $3");
+  // Fix headers that might be split across lines
+  const headers = ['TITLE:', 'INSIGHT:', 'SOLUTION_1_TITLE:', 'SOLUTION_1_DESCRIPTION:', 
+                  'SOLUTION_2_TITLE:', 'SOLUTION_2_DESCRIPTION:', 
+                  'SOLUTION_3_TITLE:', 'SOLUTION_3_DESCRIPTION:', 'CHALLENGE:'];
+                  
+  headers.forEach(header => {
+    // Ensure content is on the same line as the header
+    sanitized = sanitized.replace(new RegExp(`${header}\\s*\\n+\\s*`, 'g'), `${header} `);
+  });
 
-  // Remove extra newlines before and after section headers
-  sanitized = sanitized.replace(/\n\s*\n(TITLE|INSIGHT|SOLUTION_\d_TITLE|SOLUTION_\d_DESCRIPTION|CHALLENGE):/g, "\n$1:");
-  sanitized = sanitized.replace(/(TITLE|INSIGHT|SOLUTION_\d_TITLE|SOLUTION_\d_DESCRIPTION|CHALLENGE):\s*\n\s*\n/g, "$1: ");
-
-  // Ensure CHALLENGE is on the same line as its text
-  sanitized = sanitized.replace(/CHALLENGE:\s*\n+/g, "CHALLENGE: ");
+  // Remove multiple consecutive newlines
+  sanitized = sanitized.replace(/\n\s*\n\s*\n/g, "\n\n");
 
   // Escape double quotes inside strings
   sanitized = sanitized.replace(/(?<!\\)"/g, '\\"').replace(/\\"/g, '"');
@@ -50,11 +52,7 @@ const sanitizeJSON = (rawOutput: string) => {
     throw new Error("Unmatched curly braces in response");
   }
 
-  // Remove trailing commas
-  sanitized = sanitized.replace(/,(\s*[}\]])/g, "$1");
-
   return sanitized;
-
 };
 
 export default async function handler(
@@ -150,6 +148,7 @@ Keep the tone empathetic but direct, and ensure each solution is practical and a
     // Generate content
     const result = await geminiModel.generateContent(prompt);
     let response = await result.response.text();
+    console.log(response);
 
     response = sanitizeJSON(response);
     console.log(response);
