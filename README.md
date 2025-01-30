@@ -1,15 +1,14 @@
-# Clarity - AI-Powered Essay Writing Assistant
+# Clarity - AI-Powered Personal Growth Assistant
 
-Clarity is an intelligent web application that helps users explore different angles and perspectives for their essays. By leveraging Google's Generative AI, it provides thoughtful insights and structured approaches to essay writing.
+Clarity is an intelligent coaching platform that helps individuals navigate complex personal and professional situations. Using advanced AI technology, Clarity provides personalized guidance, behavioral insights, and actionable steps for various life challenges.
 
-## Features
+## Key Features
 
-- **Multi-Step Essay Analysis**: Break down your essay topic through guided prompts
-- **AI-Generated Insights**: Get unique perspectives and angles using Google's Generative AI
-- **Save & Organize**: Bookmark useful insights for later reference
-- **History Tracking**: Review and revisit your previous essay explorations
-- **User Authentication**: Secure, username-based authentication system
-- **Modern UI**: Clean, responsive interface with smooth transitions
+- **Relationship Guidance**: Get insights and strategies for managing personal relationships, communication challenges, and conflict resolution
+- **Career Development**: Receive tailored advice for career transitions, professional growth, and workplace dynamics
+- **Behavioral Analysis**: Understand patterns in your decisions and behaviors with AI-powered insights
+- **Action Planning**: Get concrete, step-by-step guidance for implementing positive changes
+- **Personalized Support**: Receive customized solutions that adapt to your unique situation and goals
 
 ## Tech Stack
 
@@ -22,7 +21,7 @@ Clarity is an intelligent web application that helps users explore different ang
 
 ## Prerequisites
 
-- Node.js 16+ and npm/yarn
+- Node.js 18+ and npm/yarn
 - Supabase account and project
 - Google AI API key
 
@@ -35,41 +34,6 @@ SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_anon_key
 GOOGLE_API_KEY=your_google_ai_api_key
 ```
-
-## Database Setup
-
-1. Create tables in Supabase:
-
-```sql
--- Users table
-CREATE TABLE users (
-  id UUID PRIMARY KEY,
-  username TEXT UNIQUE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
-);
-
--- History table
-CREATE TABLE history (
-  id SERIAL PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
-  title TEXT,
-  content JSONB,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
-);
-
--- Cards table
-CREATE TABLE cards (
-  id SERIAL PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
-  title TEXT NOT NULL,
-  description TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
-);
-```
-
-2. Enable Row Level Security (RLS) on tables:
-   - Disable RLS on users table
-   - Enable RLS with appropriate policies on history and cards tables (see notes.md for detailed policies)
 
 ## Installation
 
@@ -98,9 +62,9 @@ yarn dev
 ## Usage
 
 1. Enter a username to get started (no password required)
-2. Follow the guided prompts to explore your essay topic
+2. Follow the guided prompts to explore your personal growth
 3. Rate each response based on its relevance
-4. Get AI-generated insights and angles
+4. Get AI-generated insights and guidance
 5. Save useful perspectives for later reference
 6. Access your history and saved cards anytime
 
