@@ -122,7 +122,7 @@ Keep the tone empathetic but direct, and ensure each solution is practical and a
       const geminiApiKey: string = process.env.GOOGLE_API_KEY ?? '';
       const googleAI = new GoogleGenerativeAI(geminiApiKey);
       const geminiModel = googleAI.getGenerativeModel({
-        model: "gemini-pro",
+        model: "gemini-2.0-flash",
       });
 
       // Generate content
